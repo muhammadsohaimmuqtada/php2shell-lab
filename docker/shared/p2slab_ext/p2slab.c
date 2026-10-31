@@ -5,7 +5,7 @@
  * 64 hex chars, mode 600, written by the lab entrypoint before Apache starts):
  *
  *   seed[0:16]  -> the boot canary (16 bytes) planted in the request heap
- *   seed[16]    -> layout shift k: every request allocates (0x200 * (k+1))
+ *   seed[16]    -> layout shift k: every request allocates (0x1000 * (k+1))
  *                  extra bytes at RINIT before anything else runs, so all
  *                  parse-time allocations — including the stage-3 payload
  *                  slot — move by an unknowable-per-boot delta. Published
@@ -88,8 +88,8 @@ PHP_MINIT_FUNCTION(p2slab)
     }
 
     memcpy(p2sg.canary, raw, 16);
-    k = raw[16] % 33;
-    p2sg.shift_size = (size_t)0x200 * (size_t)(k + 1);   /* 0x200 .. 0x4200 */
+    k = raw[16] % 127;
+    p2sg.shift_size = (size_t)0x1000 * (size_t)(k + 1);  /* 0x1000 .. 0x7F000 */
 
     {
         unsigned long long base, v;

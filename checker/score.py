@@ -54,6 +54,12 @@ VERIFIER = {
     "oom": lambda v, x: V.check_oom_n(x),
 }
 
+VERSION_ALIASES = {v.replace(".", ""): v for v in V.CONTAINERS}
+
+
+def norm_version(v: str) -> str:
+    return VERSION_ALIASES.get(v.replace(".", ""), v)
+
 
 def load_state() -> dict:
     if os.path.exists(STATE):
@@ -73,6 +79,7 @@ def challenge_done(st: dict, version: str, cid: str) -> bool:
 
 
 def cmd_submit(version: str, cid: str, value: str) -> int:
+    version = norm_version(version)
     chal = CHALLENGES.get(cid)
     if chal is None:
         print(f"unknown challenge {cid!r} — see `score.py list`")

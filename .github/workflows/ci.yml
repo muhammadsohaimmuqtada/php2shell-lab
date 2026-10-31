@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["8.1.34", "8.3.35", "8.4.25", "8.4.26", "8.5.10", "8.5.11"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.version }}
+        run: docker build -f ${{ matrix.version }}/Dockerfile -t p2slab/ci-${{ matrix.version }} docker/
+      - name: Smoke — boot, banner, flag, config
+        run: |
+          docker run -d --name t-${{ matrix.version }} -p 127.0.0.1:8099:80 \
+            -v "$PWD/srv/webroot:/var/www/html:ro" \
+            -v "$PWD/srv/php.ini:/usr/local/etc/php/conf.d/zz-lab.ini:ro" \
+            -v "$PWD/srv/apache-single.conf:/etc/apache2/conf-enabled/zz-lab.conf:ro" \
+            p2slab/ci-${{ matrix.version }}
+          for i in $(seq 1 30); do curl -so /dev/null http://127.0.0.1:8099/ && break; sleep 1; done
+          curl -sI http://127.0.0.1:8099/ | grep -i "X-Powered-By: PHP/${{ matrix.version }}"
+          FLAG=$(docker exec t-${{ matrix.version }} cat /flag)
+          test ${#FLAG} -eq 32 && echo "flag minted (${#FLAG} chars)"
+          MEM=$(docker exec t-${{ matrix.version }} php -r 'echo ini_get("memory_limit");')
+          POST=$(docker exec t-${{ matrix.version }} php -r 'echo ini_get("post_max_size");')
+          test "$MEM" = "8M" && test "$POST" = "64M" && echo "config class OK ($MEM/$POST)"
+          docker rm -f t-${{ matrix.version }} >/dev/null
+      - name: Checker unit checks
+        run: |
+          python3 -m py_compile checker/*.py recon/*.py forensics/*.py
+          python3 checker/score.py list | head -3

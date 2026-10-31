@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# PHP2SHELL lab — single entrypoint.
+#   ./labctl doctor | list | start <ver> [--crowded] | stop [ver]
+#   ./labctl submit <ver> <ID> <value> | board | serve | hint <ID> <level> | reset
+set -uo pipefail
+cd "$(dirname "$0")"
+
+CYAN=$'\033[1;36m'; GRN=$'\033[1;32m'; YLW=$'\033[1;33m'; RED=$'\033[1;31m'; RST=$'\033[0m'
+ALL_VERSIONS=(8.4.25 8.4.26 8.5.10 8.5.11 8.3.35 8.1.34)
+
+banner() {
+  echo "${CYAN}  PHP2SHELL // LAB${RST}  educational heap-exploitation range"
+  echo "  targets on 127.0.0.1 · verified scoring · no exploit code included"
+}
+
+cmd=${1:-}
+case "$cmd" in
+  doctor)
+    banner; echo
+    err=0
+    command -v docker >/dev/null || { echo "${RED}[x] docker not found${RST}"; err=1; }
+    docker info >/dev/null 2>&1 || { echo "${RED}[x] docker daemon not reachable${RST}"; err=1; }
+    command -v python3 >/dev/null || { echo "${RED}[x] python3 not found${RST}"; err=1; }
+    for p in 8081 8082 8083 8084 8085 8086 7777; do
+      if command -v ss >/dev/null && ss -ltn 2>/dev/null | grep -q ":$p "; then
+        echo "${YLW}[!] port $p busy${RST}"; err=1
+      fi
+    done
+    [ "$err" = 0 ] && echo "${GRN}[ok] environment ready — try: ./labctl start 8.4.25${RST}"
+    exit $err ;;
+  list)
+    banner; echo
+    printf "  %-8s %-6s %s\n" VERSION PORT PROFILE
+    for v in "${ALL_VERSIONS[@]}"; do
+      case $v in
+        8.4.25) d="tutorial — published constant"; p=8081 ;;
+        8.4.26) d="family — published constant";  p=8082 ;;
+        8.5.10) d="family — published constant";  p=8083 ;;
+        8.5.11) d="family — published constant";  p=8084 ;;
+        8.3.35) d="${YLW}BOSS — constant unpublished${RST}"; p=8085 ;;
+        8.1.34) d="research yard — leak severed"; p=8086 ;;
+      esac
+      printf "  %-8s %-6s %s\n" "$v" "$p" "$d"
+    done ;;
+  start)
+    ver=${2:-}; [ -z "$ver" ] && { echo "usage: ./labctl start <version>"; exit 2; }
+    conf="srv/apache-single.conf"
+    [[ "${3:-}" == "--crowded" ]] && conf="srv/apache-crowded.conf"
+    echo "[*] building/starting web-$ver ($(basename "$conf"))"
+    docker compose --profile "$ver" up -d --build
+    port=$(docker port "p2slab-${ver//./}" 80/tcp | head -1 | sed 's/.*://')
+    echo "[*] waiting for the target..."
+    for i in $(seq 1 60); do
+      curl -so /dev/null "http://127.0.0.1:${port:-8081}/" && break; sleep 1
+    done
+    echo "${GRN}[ok] ${ver} on http://127.0.0.1:${port:-8081}/  (flag minted at /flag in-container)${RST}"
+    echo "    first steps: ${CYAN}python3 recon/fingerprint.py ${ver}${RST}  ·  ${CYAN}cat challenges/CHALLENGES.md${RST}" ;;
+  stop)
+    if [ -n "${2:-}" ]; then docker compose --profile "$2" down; else
+      docker compose --profile 8.4.25 --profile 8.4.26 --profile 8.5.10 \
+        --profile 8.5.11 --profile 8.3.35 --profile 8.1.34 down; fi
+    echo "[ok] stopped" ;;
+  submit)
+    shift; exec python3 checker/score.py submit "$@" ;;
+  board)
+    exec python3 checker/score.py board ;;
+  serve)
+    shift; exec python3 checker/score.py serve "$@" ;;
+  hint)
+    shift; exec python3 checker/hint_cli.py "$@" ;;
+  reset)
+    rm -rf .lab; docker compose --profile 8.4.25 --profile 8.4.26 --profile 8.5.10 \
+      --profile 8.5.11 --profile 8.3.35 --profile 8.1.34 down -v --remove-orphans
+    echo "${GRN}[ok] scores cleared, containers and volumes removed${RST}" ;;
+  ""|-h|--help)
+    banner; echo
+    echo "  ./labctl doctor                 environment check"
+    echo "  ./labctl list                   builds and ports"
+    echo "  ./labctl start <ver> [--crowded]  boot a target (crowded = 25 workers)"
+    echo "  ./labctl stop [ver]             stop target(s)"
+    echo "  ./labctl submit <ver> <ID> <v>  submit a stage for scoring"
+    echo "  ./labctl board                  text scoreboard"
+    echo "  ./labctl serve [port]           web scoreboard (127.0.0.1:7777)"
+    echo "  ./labctl hint <ID> <1-3>        spoiler-gated hint"
+    echo "  ./labctl reset                  full reset"
+    echo
+    echo "  read ${CYAN}docs/03-lab-guide.md${RST} first, then ${CYAN}challenges/CHALLENGES.md${RST}" ;;
+  *) echo "unknown command: $cmd"; exit 2 ;;
+esac

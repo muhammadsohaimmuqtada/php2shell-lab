@@ -82,11 +82,11 @@ HINTS = {
     ],
     "C3": [
         "8.3.35 predates the extra_flags field, so 8.4-era offsets do not "
-        "apply. Worse: every boot shifts the heap (the lab's p2slab "
-        "extension moves early request allocations by a seed-derived "
-        "delta), so the payload address changes on every restart. Nobody "
-        "can hand you this constant — not upstream, not this repo, not a "
-        "previous boot of your own.",
+        "apply — and nobody has published this build's payload address. "
+        "Worse: this lab derives the boot's memory_limit from a per-boot "
+        "seed (6-10M), so the abort geometry and the payload slot move on "
+        "every restart. Nobody can hand you this constant — not upstream, "
+        "not this repo, not a previous boot of your own.",
         "Get a crash under control first: make stage 3 fire with a wrong "
         "address, let the worker segfault, capture the core (core_pattern, "
         "or run the container with a ptrace-attached gdb). See forensics/ "
@@ -96,7 +96,8 @@ HINTS = {
         "your payload signature (a marker string you placed in a known "
         "part of the fake structure). For each hit, subtract the marker's "
         "offset within your fake structure from its offset in the chunk — "
-        "that is this boot's constant. Re-measure after every restart.",
+        "that is this boot's constant. Re-measure after every restart; the "
+        "seed changed.",
     ],
     "D1": [
         "The research yard exists because on ≤ 8.2 the leak channel is "

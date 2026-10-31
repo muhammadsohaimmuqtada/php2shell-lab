@@ -4,12 +4,13 @@ Submit with `./labctl submit <version> <ID> <value>`. Every stage is
 verified against the live container. Hints: `./labctl hint <ID> <1-3>`
 (level 3 is as far as the lab will ever go).
 
-> **Every boot is a new instance.** The `p2slab` extension shifts the request
-> heap by a seed-derived delta, plants a fresh 16-byte canary, and scatters
-> decoy pointer clusters. Bases are per-boot; constants do not carry across
-> restarts; statistical shortcuts verify against decoys. The gate enforces
-> an OOM-probe budget per boot (`./labctl budget`) — sweeps are uneconomical
-> by design.
+> **The boss boot is a new instance every time.** `web-8335` derives its
+> `memory_limit` from the boot seed (6–10M, same config class), which moves
+> the parse-abort geometry and the stage-3 payload address; the `p2slab`
+> extension plants a fresh canary and decoy clusters in every request heap.
+> Bases are per-boot; constants do not carry across restarts; statistical
+> shortcuts verify against decoys. The gate enforces an OOM-probe budget per
+> boot (`./labctl budget`) — sweeps are uneconomical by design.
 
 ---
 
@@ -56,9 +57,11 @@ for these builds is published research (`chunk + 0x690D8`). Prereqs: B3, C1.
 
 ### C3 · the-8.3-boss — 100 pts · target `8.3.35`
 RCE on 8.3.35. **No published constant exists for this build** — the 8.4-era
-`0x690D8` does not apply (pre-`extra_flags` layout). Derive the real address
-with heap forensics (`forensics/README.md`): crash the worker, scan the chunk
-for your own payload signature, compute the offset. Prereqs: B1+B2 on 8335.
+`0x690D8` does not apply (pre-`extra_flags` layout) — and this boot's
+`memory_limit` is seed-derived, so the payload address differs on every
+restart. Derive the real address with heap forensics
+(`forensics/README.md`): crash the worker, scan the chunk for your own
+payload signature, compute the offset. Prereqs: B1+B2 on 8335.
 
 ---
 

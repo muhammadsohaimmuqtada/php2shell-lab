@@ -13,16 +13,21 @@
  *   seed[17:20] -> decoy pointer base (page-aligned, plausible 0x7f… form)
  *   seed[20:28] -> decoy pointer offsets
  *
- * RINIT plants two blocks early in every request:
- *   1. the shift block: a run of 'A' (0x41) bytes, length = shift — findable
- *      in forensics by design (see forensics/README.md)
- *   2. the canary/decoy block (0x400): magic "P2SLABCB" + canary + decoy
- *      pointer clusters that look statistically identical to real
- *      destructor-family pointers but never match live mappings
+ * RINIT plants a canary/decoy block (0x400) in every request:
+ *   magic "P2SLABCB" + the boot canary + decoy pointer clusters that look
+ *   statistically identical to real destructor-family pointers but never
+ *   match live mappings. The block lives only inside the request heap, so
+ *   it is visible in core dumps of a crashing worker — the forensics
+ *   landmark — and invisible to between-request process inspection.
  *
- * Both blocks are freed at RSHUTDOWN. If an aborted request skips RSHUTDOWN
- * they leak — a few KB per OOM abort, which is the lab's attempt budget
- * made physical.
+ * If an aborted request skips RSHUTDOWN the block leaks — a few KB per OOM
+ * abort, which is the lab's attempt budget made physical.
+ *
+ * NOTE: no layout shifting here on purpose. The multipart parse runs inside
+ * sapi_activate, BEFORE zend_activate_modules, so no extension-side RINIT
+ * allocation can move it. Per-boot randomization of the boss build comes
+ * from the entrypoint randomizing memory_limit instead — see
+ * docker/shared/entrypoint.sh.
  *
  * The seed is root-only. Nothing here prints the shift or canary anywhere.
  */
@@ -42,10 +47,8 @@
 
 typedef struct _p2s_globals {
     int ready;
-    size_t shift_size;
     unsigned char canary[16];
     unsigned char decoy[16][8];
-    void *shift_block;
     void *decoy_block;
 } p2s_globals;
 
@@ -65,7 +68,7 @@ PHP_MINIT_FUNCTION(p2slab)
     char hex[130];
     unsigned char raw[32];
     size_t n, i;
-    int hi, lo, k;
+    int hi, lo;
 
     memset(&p2sg, 0, sizeof(p2sg));
 
@@ -88,13 +91,6 @@ PHP_MINIT_FUNCTION(p2slab)
     }
 
     memcpy(p2sg.canary, raw, 16);
-    /* Shift window is calibrated, not arbitrary: it must exceed the stage-3
-     * spray span (the ~3-6 KB of freed slots the fake-table copies occupy,
-     * which gives the published constant its tolerance) and stay far below
-     * the range where the blanket early allocation perturbs the leak-stage
-     * geometry. 0x400*(k+1), k in [6,15] -> 7..11 KB satisfies both. */
-    k = 6 + raw[16] % 10;
-    p2sg.shift_size = (size_t)0x400 * (size_t)(k + 1);   /* 0x1C00 .. 0x2C00 */
 
     {
         unsigned long long base, v;
@@ -120,11 +116,6 @@ PHP_RINIT_FUNCTION(p2slab)
         unsigned char *blk;
         int i;
 
-        /* 1) layout shift: deterministic size, deterministic position */
-        p2sg.shift_block = emalloc(p2sg.shift_size);
-        memset(p2sg.shift_block, 0x41, p2sg.shift_size);
-
-        /* 2) canary + decoy block, allocated immediately after the shift */
         blk = (unsigned char *)emalloc(P2S_BLK);
         memset(blk, 0, P2S_BLK);
         memcpy(blk, P2S_MAGIC, 8);
@@ -142,10 +133,6 @@ PHP_RINIT_FUNCTION(p2slab)
 
 PHP_RSHUTDOWN_FUNCTION(p2slab)
 {
-    if (p2sg.shift_block) {
-        efree(p2sg.shift_block);
-        p2sg.shift_block = NULL;
-    }
     if (p2sg.decoy_block) {
         efree(p2sg.decoy_block);
         p2sg.decoy_block = NULL;

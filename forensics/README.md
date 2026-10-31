@@ -6,12 +6,11 @@ layout (`chunk + 0x690D8`) is documented public research — but 8.3 objects
 have no `extra_flags` field, every allocation after the object shifts, and
 the payload therefore lands at a different offset.
 
-And that is only the static half of the problem: **every boot moves the
-target again.** The lab's `p2slab` extension reads a per-boot seed and
-allocates a variable-size block at the start of every request, so all
-parse-time allocations — including your payload slot — shift by a delta you
-are not told. A constant measured an hour ago is dead after `./labctl reset`.
-You measure it, every boot.
+And that is only the static half of the problem: **every boss boot moves
+the target again.** The lab derives this build's `memory_limit` from the
+boot seed (6–10M — the same config class), which moves the parse-abort
+geometry and therefore the payload slot. A constant measured an hour ago is
+dead after `./labctl reset`. You measure it, every boot.
 
 ## The idea
 
@@ -24,16 +23,12 @@ heap, compute its distance from the chunk base, and you have your constant.
 
 ## Recipe
 
-0. **Find your landmarks (per boot).** The extension leaves two findable
-   structures in the request heap, by design:
-   - the **shift block**: a run of `'A'` (0x41) bytes, length in the
-     7–11 KB band, derived from this boot's seed (root-only — you measure
-     it, you don't read it);
-   - the **canary block** immediately after it: magic `P2SLABCB`, then 16
-     canary bytes, then decoy pointer clusters (`0x7f…`-shaped, page-aligned,
-     and wrong).
-   Locate them in the core and you know where the early-request allocations
-   sit this boot — the payload slot's offset moves with the shift.
+0. **Know your landmarks (in any core).** The extension plants a block in
+   every request heap: magic `P2SLABCB`, then 16 canary bytes, then decoy
+   pointer clusters (`0x7f…`-shaped, page-aligned, and wrong). In a core
+   dump they tell you a request heap is live and help you sanity-check the
+   chunk region. (Between requests the request heap is unmapped — the block
+   is only visible in cores of crashing/in-flight workers.)
 1. **Get a core.** Either:
    - set `kernel.core_pattern=/tmp/core.%p` on the host (lab machines only),
      let the container's worker crash, and `docker cp` the core out of the

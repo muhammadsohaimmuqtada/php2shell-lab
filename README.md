@@ -54,8 +54,10 @@ request heap by a seed-derived delta, re-plants a fresh canary, and scatters
 decoy pointer clusters that pass every statistical check and fail every real
 one. Concretely:
 
-- **Stored exploits and published constants produce nothing.** The payload
-  address changes on every restart; re-derive it or fail.
+- **The boss build re-randomizes every boot.** Its `memory_limit` is
+  seed-derived within the vulnerable config class (6–10M), which moves the
+  parse-abort geometry and the payload address. Published constants and
+  saved exploits produce nothing on a fresh boot; re-derive or fail.
 - **Blind calibration sweeps hit the budget.** The gate allows a limited
   number of OOM-probe requests per boot (`./labctl budget`), then answers
   429 until a reset — and a reset re-randomizes everything you measured.

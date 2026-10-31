@@ -4,6 +4,13 @@ Submit with `./labctl submit <version> <ID> <value>`. Every stage is
 verified against the live container. Hints: `./labctl hint <ID> <1-3>`
 (level 3 is as far as the lab will ever go).
 
+> **Every boot is a new instance.** The `p2slab` extension shifts the request
+> heap by a seed-derived delta, plants a fresh 16-byte canary, and scatters
+> decoy pointer clusters. Bases are per-boot; constants do not carry across
+> restarts; statistical shortcuts verify against decoys. The gate enforces
+> an OOM-probe budget per boot (`./labctl budget`) — sweeps are uneconomical
+> by design.
+
 ---
 
 ## Track A — Recon (25 pts)
@@ -28,8 +35,11 @@ Leak a Zend MM chunk base from the worker's heap and submit it
 anonymous rw arena.*
 
 ### B2 · code-zero — 25 pts · same targets
-Leak the `libphp.so` load base. *Verified: equals the live load base in
-`/proc/<worker>/maps`.*
+Leak the `libphp.so` load base **and this boot's canary** — the 16 bytes
+following the `P2SLABCB` magic in the leak window. Submit
+`libphp_base,canary`. *Verified: base equals the live load base in
+`/proc/<worker>/maps`, canary matches this boot's seed — a copied or
+out-of-band answer fails.*
 
 ### B3 · portable-leak — 25 pts
 Repeat B1 on **8.4.26, 8.5.10, 8.5.11**. Submit three comma-separated chunk

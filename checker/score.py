@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
+import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -30,9 +32,10 @@ CHALLENGES = {
     "B1": dict(title="chunk-zero: leak a Zend MM chunk base", points=25,
                versions=["8.4.25", "8.4.26", "8.5.10", "8.5.11", "8.3.35"],
                verifier="chunk", prereq=["A1"]),
-    "B2": dict(title="code-zero: leak the libphp.so load base", points=25,
+    "B2": dict(title="code-zero: leak libphp base + this boot's canary "
+                     "(submit `base,canary`)", points=25,
                versions=["8.4.25", "8.4.26", "8.5.10", "8.5.11", "8.3.35"],
-               verifier="libphp", prereq=["B1"]),
+               verifier="libphp_pair", prereq=["B1"]),
     "B3": dict(title="portable-leak: chunk bases for 8426,8510,8511 (comma-sep)",
                points=25, versions=["8.4.25"], verifier="chunk3", prereq=["B1"]),
     "C1": dict(title="shell-on-8425: read /flag via code execution", points=50,
@@ -50,9 +53,35 @@ VERIFIER = {
     "config": V.check_config,
     "chunk": lambda v, x: V.check_chunk(v, int(x, 0)),
     "libphp": lambda v, x: V.check_libphp(v, int(x, 0)),
+    "libphp_pair": V.check_libphp_pair,
     "flag": V.check_flag,
     "oom": lambda v, x: V.check_oom_n(x),
 }
+
+# ------------------------------------------------------------------ exam mode
+
+EXAM_FLAG = os.path.join(ROOT, ".lab", "exam")
+SUBMIT_INTERVAL = 10.0
+
+
+def exam_mode() -> bool:
+    return os.path.exists(EXAM_FLAG)
+
+
+def exam_throttled() -> bool:
+    """In exam mode: one submission per SUBMIT_INTERVAL seconds, and
+    rejections are silent (no reason given). Docs teach the taxonomy;
+    the oracle stays mute."""
+    if not exam_mode():
+        return False
+    os.makedirs(os.path.dirname(EXAM_FLAG), exist_ok=True)
+    stamp = EXAM_FLAG + ".last"
+    now = time.time()
+    if os.path.exists(stamp) and now - float(open(stamp).read() or 0) < SUBMIT_INTERVAL:
+        return True
+    with open(stamp, "w") as fh:
+        fh.write(str(now))
+    return False
 
 VERSION_ALIASES = {v.replace(".", ""): v for v in V.CONTAINERS}
 
@@ -125,6 +154,11 @@ def cmd_submit(version: str, cid: str, value: str) -> int:
             print(f"cannot parse value: {exc}")
             return 2
 
+    if exam_mode() and exam_throttled():
+        print("REJECTED (too soon — exam mode allows one submission "
+              f"every {SUBMIT_INTERVAL:.0f}s)")
+        return 1
+
     ok = all(r[0] for r in results)
     detail = " | ".join(r[1] for r in results)
     if ok:
@@ -132,6 +166,8 @@ def cmd_submit(version: str, cid: str, value: str) -> int:
         save_state(st)
         print(f"ACCEPTED  +{chal['points']} pts  [{version}/{cid}]  {detail}")
         print(f"total: {total(st)} / 350")
+    elif exam_mode():
+        print("REJECTED")
     else:
         print(f"REJECTED  [{version}/{cid}]  {detail}")
     return 0 if ok else 1
@@ -220,6 +256,19 @@ def main() -> int:
         port = int(sys.argv[2]) if len(sys.argv) > 2 else 7777
         print(f"scoreboard on http://127.0.0.1:{port} (Ctrl-C to stop)")
         HTTPServer(("127.0.0.1", port), Handler).serve_forever()
+        return 0
+    if cmd == "budget":
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:8081/__lab/stats",
+                                        timeout=5) as r:
+                stats = json.load(r)
+        except Exception as exc:
+            print(f"gate unreachable: {exc}")
+            return 1
+        print(f"OOM-probe budget per boot: {stats['gate']['budget']}")
+        for host, c in sorted(stats["targets"].items()):
+            print(f"  {host:12} {c['oom_posts']:>4}/{c['budget']} used   "
+                  f"{c['total']} total requests")
         return 0
     print(f"unknown command {cmd!r}")
     return 2

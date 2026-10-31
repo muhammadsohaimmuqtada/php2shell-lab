@@ -31,7 +31,11 @@ jobs:
           POST=$(docker exec t-${{ matrix.version }} php -r 'echo ini_get("post_max_size");')
           test "$MEM" = "8M" && test "$POST" = "64M" && echo "config class OK ($MEM/$POST)"
           docker rm -f t-${{ matrix.version }} >/dev/null
-      - name: Checker unit checks
+      - name: Checker + gate unit checks
         run: |
-          python3 -m py_compile checker/*.py recon/*.py forensics/*.py
+          python3 -m py_compile checker/*.py recon/*.py forensics/*.py gate/gate.py
           python3 checker/score.py list | head -3
+          docker build -t p2slab/ci-gate gate
+          docker run -d --name ci-gate -p 127.0.0.1:8081:8081 p2slab/ci-gate
+          sleep 2 && curl -s http://127.0.0.1:8081/__lab/stats | grep -o '"budget": [0-9]*'
+          docker rm -f ci-gate >/dev/null

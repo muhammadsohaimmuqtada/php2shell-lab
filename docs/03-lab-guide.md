@@ -38,15 +38,31 @@ If a submission fails after a genuine success, the worker probably rotated
 
 ## 3. Modes
 
-- **single** (default): one worker, deterministic heap — learn here.
-- **`--crowded`** (nightmare): 25 workers, keep-alive on. The aborting
-  worker and the next request must be the same process; connection pinning
-  becomes part of the exploit. Try your finished chain here for the real
-  field-condition experience.
+- **single** (default): one worker, deterministic heap — learn here, on the
+  budgeted ports 808x.
+- **`--crowded`** (nightmare): 25 workers, keep-alive on, **direct ports
+  908x** (no attempt budget). The aborting worker and the next request must
+  be the same process; connection pinning becomes part of the exploit.
 
 ```bash
 ./labctl stop 8.4.25 && ./labctl start 8.4.25 --crowded
 ```
+
+## 3b. The gate and the attempt budget
+
+All standard traffic goes through the gate (808x). POST bodies of 1 MiB or
+more are the OOM-probe shape and count against a per-boot budget (default
+300, `./labctl budget` to see it live). Over budget: 429 until
+`./labctl reset` — which also re-randomizes the heap, so a budget reset
+never preserves your measurements. This is deliberate: calibration by
+brute-force sweep must cost more than calibration by understanding.
+
+## 3c. Exam mode
+
+`./labctl exam on` — rejections carry no reason and submissions throttle to
+one per 10 s. Use it when your tooling works and you want to be graded the
+way the capstone will grade you: no oracle, just judgment. `./labctl exam
+off` restores full feedback.
 
 ## 4. Suggested order
 

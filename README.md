@@ -37,7 +37,7 @@ On your own machine (Docker required):
 ```bash
 git clone <this repo> && cd php2shell-lab
 ./labctl doctor                  # environment check
-./labctl start 8.4.25            # boot the tutorial build
+./labctl start 8.4.25            # boot the tutorial build (budgeted port 8081)
 curl -sI http://127.0.0.1:8081/ | grep -i powered
 ./labctl board                   # see the challenge ladder
 open docs/03-lab-guide.md        # how to work the lab
@@ -46,6 +46,31 @@ open docs/03-lab-guide.md        # how to work the lab
 No Docker locally? Open the repo in **GitHub Codespaces** — the included
 `.devcontainer` ships docker-in-docker, so `./labctl` works unchanged in the
 browser (all targets still bind to the Codespace's localhost).
+
+## Why an AI can't run this lab for you
+
+Every boot randomizes the instance: a lab extension (`p2slab`) shifts the
+request heap by a seed-derived delta, re-plants a fresh canary, and scatters
+decoy pointer clusters that pass every statistical check and fail every real
+one. Concretely:
+
+- **Stored exploits and published constants produce nothing.** The payload
+  address changes on every restart; re-derive it or fail.
+- **Blind calibration sweeps hit the budget.** The gate allows a limited
+  number of OOM-probe requests per boot (`./labctl budget`), then answers
+  429 until a reset — and a reset re-randomizes everything you measured.
+- **Shortcut heuristics eat the decoys.** Fake clusters that "look right"
+  verify wrong; only genuine understanding of *which* pointers matter
+  survives the checker.
+- **Exam mode silences the oracle.** `./labctl exam on`: rejections carry no
+  reason and submissions throttle — the search feedback loop an agent needs
+  is gone. The docs still teach humans the full error taxonomy.
+
+And the honest line: an AI with root on your machine can always `gdb` the
+worker or read `/proc` — so can you. That is not exploitation, and this lab
+is not scored that way. The question the lab asks is: *can you re-derive the
+chain on an instance whose geometry was randomized after all public
+knowledge was written?* That requires the thing this lab exists to teach.
 
 When you believe you have completed a stage, submit it:
 

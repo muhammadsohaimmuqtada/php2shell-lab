@@ -42,11 +42,15 @@ HINTS = {
         "neighbouring heap to contain a pointer INTO the PHP binary itself.",
         "One of the sprayed fields should be an array whose element table "
         "lands in the recycled slot; the table's pDestructor-style slots "
-        "hold function pointers with page-aligned low 12 bits.",
+        "hold function pointers with page-aligned low 12 bits. The leak "
+        "window also contains this boot's canary block (magic P2SLABCB) — "
+        "B2 wants it submitted alongside the base.",
         "Dump the leak, bucket all 8-byte aligned values by (v & ~0xFFF) "
         "popularity, and test which bucket minus each candidate offset "
         "(zval_ptr_dtor is the classic) yields a page-aligned libphp base. "
-        "Verify with the checker before trusting it.",
+        "Expect decoys: fake clusters that cluster beautifully and verify "
+        "wrong. Only live /proc/<pid>/maps tells the truth. Submit "
+        "`libphp_base,canary`.", 
     ],
     "B3": [
         "If your leak works on one build it should work on its siblings — "
@@ -78,16 +82,21 @@ HINTS = {
     ],
     "C3": [
         "8.3.35 predates the extra_flags field, so 8.4-era offsets do not "
-        "apply. The payload lands somewhere else in the chunk — nobody has "
-        "published where. That is the whole boss fight.",
+        "apply. Worse: every boot shifts the heap (the lab's p2slab "
+        "extension moves early request allocations by a seed-derived "
+        "delta), so the payload address changes on every restart. Nobody "
+        "can hand you this constant — not upstream, not this repo, not a "
+        "previous boot of your own.",
         "Get a crash under control first: make stage 3 fire with a wrong "
         "address, let the worker segfault, capture the core (core_pattern, "
-        "or run the container with a ptrace-attached gdb). See forensics/.",
-        "In the core, find the spray: search the 2 MiB chunk region for your "
-        "payload signature (a marker string you placed in a known part of "
-        "the fake structure). For each hit, subtract the marker's offset "
-        "within your fake structure from its offset in the chunk — that is "
-        "your constant. Trust it only when stage 3 lands and /flag reads.",
+        "or run the container with a ptrace-attached gdb). See forensics/ "
+        "— the extension's shift block ('A'-run) and canary block are "
+        "findable landmarks by design.",
+        "In the core, find the spray: search the 2 MiB chunk region for "
+        "your payload signature (a marker string you placed in a known "
+        "part of the fake structure). For each hit, subtract the marker's "
+        "offset within your fake structure from its offset in the chunk — "
+        "that is this boot's constant. Re-measure after every restart.",
     ],
     "D1": [
         "The research yard exists because on ≤ 8.2 the leak channel is "

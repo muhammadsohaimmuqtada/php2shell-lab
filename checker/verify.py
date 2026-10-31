@@ -151,6 +151,49 @@ def check_flag(version: str, value: str) -> tuple[bool, str]:
     return False, "wrong flag — that is not what /flag holds right now"
 
 
+def boot_canary(version: str) -> str | None:
+    """The 16-byte per-boot canary the p2slab extension plants in the request
+    heap, derived from /lab/seed (bytes 0..16). Root-read via docker exec —
+    that is the checker's business; learners must find it in their leak."""
+    name = container_up(version)
+    hexseed = sh(["docker", "exec", name, "cat", "/lab/seed"], check=False).strip()
+    if len(hexseed) < 64:
+        return None
+    try:
+        raw = bytes.fromhex(hexseed[:64])
+    except ValueError:
+        return None
+    return raw[0:16].hex()
+
+
+def check_canary(version: str, canary: str) -> tuple[bool, str]:
+    got = canary.strip().lower().replace("0x", "")
+    if not re.fullmatch(r"[0-9a-f]{32}", got):
+        return False, "canary is 32 hex chars — from the leak window's P2SLABCB block"
+    real = boot_canary(version)
+    if real is None:
+        return False, "target has no seed — is this a lab container?"
+    if got == real:
+        return True, "canary matches this boot — your leak channel is real"
+    return False, ("canary does not match this boot (wrong boot, or the leak "
+                   "never ran through the session channel)")
+
+
+def check_libphp_pair(version: str, value: str) -> tuple[bool, str]:
+    """B2 submission: `libphp_base,canary` — the base must match the live
+    mapping AND the canary must match this boot, proving the leak ran."""
+    parts = [p.strip() for p in value.split(",")]
+    if len(parts) != 2:
+        return False, "submit two comma-separated values: libphp_base,canary"
+    ok_base, msg = check_libphp(version, int(parts[0], 0))
+    if not ok_base:
+        return False, msg
+    ok_c, msgc = check_canary(version, parts[1])
+    if not ok_c:
+        return False, msgc
+    return True, msg + " + " + msgc
+
+
 def check_config(version: str, value: str) -> tuple[bool, str]:
     name = container_up(version)
     ini = sh(["docker", "exec", name, "php", "-i"], check=False)

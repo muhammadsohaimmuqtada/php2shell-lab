@@ -44,17 +44,20 @@ case "$cmd" in
     done ;;
   start)
     ver=${2:-}; [ -z "$ver" ] && { echo "usage: ./labctl start <version>"; exit 2; }
-    conf="srv/apache-single.conf"
-    [[ "${3:-}" == "--crowded" ]] && conf="srv/apache-crowded.conf"
+    conf="srv/apache-single.conf"; portbase=8081; mode="budgeted"
+    [[ "${3:-}" == "--crowded" ]] && { conf="srv/apache-crowded.conf"; portbase=9081; mode="direct (no budget — nightmare)"; }
     echo "[*] building/starting web-$ver ($(basename "$conf"))"
-    docker compose --profile "$ver" up -d --build
-    port=$(docker port "p2slab-${ver//./}" 80/tcp | head -1 | sed 's/.*://')
-    echo "[*] waiting for the target..."
-    for i in $(seq 1 60); do
-      curl -so /dev/null "http://127.0.0.1:${port:-8081}/" && break; sleep 1
+    docker compose --profile "$ver" up -d --build 2>&1 | grep -E 'Built|Started|Error|error' | head -4
+    case $ver in 8.4.25) p=1;; 8.4.26) p=2;; 8.5.10) p=3;; 8.5.11) p=4;; 8.3.35) p=5;; 8.1.34) p=6;; *) p=1;; esac
+    port=$((portbase + p - 1))
+    echo "[*] waiting for the target (via gate)..."
+    for i in $(seq 1 90); do
+      curl -so /dev/null "http://127.0.0.1:${port}/" && break; sleep 1
     done
-    echo "${GRN}[ok] ${ver} on http://127.0.0.1:${port:-8081}/  (flag minted at /flag in-container)${RST}"
-    echo "    first steps: ${CYAN}python3 recon/fingerprint.py ${ver}${RST}  ·  ${CYAN}cat challenges/CHALLENGES.md${RST}" ;;
+    echo "${GRN}[ok] ${ver} on http://127.0.0.1:${port}/  (${mode})${RST}"
+    echo "    per-boot randomization is ACTIVE: every boot shifts the heap and"
+    echo "    re-plants the canary. Stored exploits and constants do not carry over."
+    echo "    next: ${CYAN}python3 recon/fingerprint.py ${ver}${RST}  ·  ${CYAN}./labctl budget${RST}  ·  ${CYAN}cat challenges/CHALLENGES.md${RST}" ;;
   stop)
     if [ -n "${2:-}" ]; then docker compose --profile "$2" down; else
       docker compose --profile 8.4.25 --profile 8.4.26 --profile 8.5.10 \
@@ -66,23 +69,35 @@ case "$cmd" in
     exec python3 checker/score.py board ;;
   serve)
     shift; exec python3 checker/score.py serve "$@" ;;
+  budget)
+    exec python3 checker/score.py budget ;;
+  exam)
+    arg=${2:-}
+    case "$arg" in
+      on)  mkdir -p .lab; touch .lab/exam
+           echo "${YLW}[exam mode ON]${RST} silent rejections, 1 submit/10s. The docs teach the error taxonomy; the oracle stays mute." ;;
+      off) rm -f .lab/exam; echo "[exam mode OFF] full feedback restored" ;;
+      *)   [ -f .lab/exam ] && echo "exam mode: ON (./labctl exam off)" || echo "exam mode: OFF (./labctl exam on)" ;;
+    esac ;;
   hint)
     shift; exec python3 checker/hint_cli.py "$@" ;;
   reset)
-    rm -rf .lab; docker compose --profile 8.4.25 --profile 8.4.26 --profile 8.5.10 \
+    rm -rf .lab srv/out/*; docker compose --profile 8.4.25 --profile 8.4.26 --profile 8.5.10 \
       --profile 8.5.11 --profile 8.3.35 --profile 8.1.34 down -v --remove-orphans
-    echo "${GRN}[ok] scores cleared, containers and volumes removed${RST}" ;;
+    echo "${GRN}[ok] scores cleared, containers removed — next boot gets a fresh seed and budget${RST}" ;;
   ""|-h|--help)
     banner; echo
     echo "  ./labctl doctor                 environment check"
     echo "  ./labctl list                   builds and ports"
-    echo "  ./labctl start <ver> [--crowded]  boot a target (crowded = 25 workers)"
+    echo "  ./labctl start <ver> [--crowded]  boot a target (808x budgeted; --crowded = 25 workers on 908x direct)"
     echo "  ./labctl stop [ver]             stop target(s)"
     echo "  ./labctl submit <ver> <ID> <v>  submit a stage for scoring"
     echo "  ./labctl board                  text scoreboard"
     echo "  ./labctl serve [port]           web scoreboard (127.0.0.1:7777)"
+    echo "  ./labctl budget                 remaining OOM-probe budget per target"
+    echo "  ./labctl exam on|off            exam mode: silent rejections, throttled submissions"
     echo "  ./labctl hint <ID> <1-3>        spoiler-gated hint"
-    echo "  ./labctl reset                  full reset"
+    echo "  ./labctl reset                  full reset (new seed, new budget)"
     echo
     echo "  read ${CYAN}docs/03-lab-guide.md${RST} first, then ${CYAN}challenges/CHALLENGES.md${RST}" ;;
   *) echo "unknown command: $cmd"; exit 2 ;;

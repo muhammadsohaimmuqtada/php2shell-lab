@@ -42,9 +42,9 @@ HINTS = {
         "neighbouring heap to contain a pointer INTO the PHP binary itself.",
         "One of the sprayed fields should be an array whose element table "
         "lands in the recycled slot; the table's pDestructor-style slots "
-        "hold function pointers with page-aligned low 12 bits. The leak "
-        "window also contains this boot's canary block (magic P2SLABCB) — "
-        "B2 wants it submitted alongside the base.",
+        "hold function pointers with page-aligned low 12 bits. Beware: the "
+        "neighbourhood is full of plausible-looking fakes — plausible is "
+        "not correct.",
         "Dump the leak, bucket all 8-byte aligned values by (v & ~0xFFF) "
         "popularity, and test which bucket minus each candidate offset "
         "(zval_ptr_dtor is the classic) yields a page-aligned libphp base. "

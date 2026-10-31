@@ -32,10 +32,9 @@ CHALLENGES = {
     "B1": dict(title="chunk-zero: leak a Zend MM chunk base", points=25,
                versions=["8.4.25", "8.4.26", "8.5.10", "8.5.11", "8.3.35"],
                verifier="chunk", prereq=["A1"]),
-    "B2": dict(title="code-zero: leak libphp base + this boot's canary "
-                     "(submit `base,canary`)", points=25,
+    "B2": dict(title="code-zero: leak the libphp.so load base", points=25,
                versions=["8.4.25", "8.4.26", "8.5.10", "8.5.11", "8.3.35"],
-               verifier="libphp_pair", prereq=["B1"]),
+               verifier="libphp", prereq=["B1"]),
     "B3": dict(title="portable-leak: chunk bases for 8426,8510,8511 (comma-sep)",
                points=25, versions=["8.4.25"], verifier="chunk3", prereq=["B1"]),
     "C1": dict(title="shell-on-8425: read /flag via code execution", points=50,

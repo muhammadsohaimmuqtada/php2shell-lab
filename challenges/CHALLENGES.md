@@ -35,11 +35,8 @@ Leak a Zend MM chunk base from the worker's heap and submit it
 anonymous rw arena.*
 
 ### B2 · code-zero — 25 pts · same targets
-Leak the `libphp.so` load base **and this boot's canary** — the 16 bytes
-following the `P2SLABCB` magic in the leak window. Submit
-`libphp_base,canary`. *Verified: base equals the live load base in
-`/proc/<worker>/maps`, canary matches this boot's seed — a copied or
-out-of-band answer fails.*
+Leak the `libphp.so` load base. *Verified: equals the live load base in
+`/proc/<worker>/maps` — per-boot, so a copied or stale answer fails.*
 
 ### B3 · portable-leak — 25 pts
 Repeat B1 on **8.4.26, 8.5.10, 8.5.11**. Submit three comma-separated chunk

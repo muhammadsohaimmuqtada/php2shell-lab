@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import select
 import socket
 import threading
 
@@ -170,7 +171,7 @@ def main():
     print(f"[gate] OOM-probe budget per boot: {BUDGET}", flush=True)
     conns, wlist = [], servers
     while True:
-        rlist, _, _ = socket.select(wlist, [], [], 1.0)
+        rlist, _, _ = select.select(wlist, [], [], 1.0)
         for s in rlist:
             try:
                 conn, _ = s.accept()

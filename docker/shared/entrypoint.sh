@@ -7,7 +7,7 @@ set -e
 
 mkdir -p /lab /out
 
-SEED="$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+SEED="$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 printf '%s' "$SEED" > /lab/seed
 chmod 600 /lab/seed
 chown root:root /lab/seed

@@ -10,6 +10,7 @@ x-web: &web
     - ./srv/php.ini:/usr/local/etc/php/conf.d/zz-lab.ini:ro
     - ./srv/apache-single.conf:/etc/apache2/conf-enabled/zz-lab.conf:ro
     - ./docker/shared/entrypoint.sh:/usr/local/bin/lab-entrypoint.sh:ro
+    - ./srv/out:/out
   entrypoint: ["/usr/local/bin/lab-entrypoint.sh"]
   command: ["apache2-foreground"]
 

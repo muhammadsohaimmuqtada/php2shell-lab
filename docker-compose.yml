@@ -12,7 +12,7 @@ x-web: &web
   expose: ["80"]
   volumes:
     - ./srv/webroot:/var/www/html:ro
-    - ./srv/php.ini:/opt/lab/php.ini.template:ro
+    - ./srv/php.ini:/usr/local/etc/php/conf.d/zz-lab.ini:ro
     - ./srv/apache-single.conf:/etc/apache2/conf-enabled/zz-lab.conf:ro
     - ./docker/shared/entrypoint.sh:/usr/local/bin/lab-entrypoint.sh:ro
     - ./srv/out:/out
@@ -63,8 +63,6 @@ services:
       dockerfile: 8.3.35/Dockerfile
     image: p2slab/web-8.3.35
     container_name: p2slab-8335
-    environment:
-      P2S_RAND_MEM: "1"
     profiles: ["8.3.35"]
 
   web-8134:

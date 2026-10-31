@@ -6,11 +6,10 @@ layout (`chunk + 0x690D8`) is documented public research — but 8.3 objects
 have no `extra_flags` field, every allocation after the object shifts, and
 the payload therefore lands at a different offset.
 
-And that is only the static half of the problem: **every boss boot moves
-the target again.** The lab derives this build's `memory_limit` from the
-boot seed (6–10M — the same config class), which moves the parse-abort
-geometry and therefore the payload slot. A constant measured an hour ago is
-dead after `./labctl reset`. You measure it, every boot.
+The measurement itself is per-boot evidence: chunk and libphp bases change
+with every restart, your notebook's numbers belong to the boot that produced
+them, and the canary/decoy blocks in the core tell you whether you are
+looking at a live request heap or fooling yourself.
 
 ## The idea
 

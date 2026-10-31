@@ -4,13 +4,11 @@ Submit with `./labctl submit <version> <ID> <value>`. Every stage is
 verified against the live container. Hints: `./labctl hint <ID> <1-3>`
 (level 3 is as far as the lab will ever go).
 
-> **The boss boot is a new instance every time.** `web-8335` derives its
-> `memory_limit` from the boot seed (6–10M, same config class), which moves
-> the parse-abort geometry and the stage-3 payload address; the `p2slab`
-> extension plants a fresh canary and decoy clusters in every request heap.
-> Bases are per-boot; constants do not carry across restarts; statistical
-> shortcuts verify against decoys. The gate enforces an OOM-probe budget per
-> boot (`./labctl budget`) — sweeps are uneconomical by design.
+> **No shortcuts shipped.** No exploit, no calibrated shapes, and no boss
+> payload address exist in this repo or any public one. Bases and flags are
+> per-boot; the `p2slab` extension plants decoy clusters that verify
+> against nothing; the gate budgets OOM probes per boot; exam mode silences
+> the checker. What's left is the mechanism — which is the point.
 
 ---
 

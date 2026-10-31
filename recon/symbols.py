@@ -47,7 +47,7 @@ def main() -> int:
         off = e_shoff + i * e_shentsize
         vals = struct.unpack_from("<IIQQQQIIQQ", data, off)
         sections.append(dict(name=vals[0], type=vals[1], offset=vals[4],
-                             size=vals[5], link=vals[6], entsize=vals[8]))
+                             size=vals[5], link=vals[6], entsize=vals[9]))
     stroff = sections[e_shstrndx]["offset"]
     loads = []
     # PT_LOAD walk for the link-time base (st_value is a virtual address)

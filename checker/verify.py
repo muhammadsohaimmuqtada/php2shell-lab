@@ -208,7 +208,7 @@ def parse_elf_symbols(path: str) -> tuple[int | None, int | None]:
     sections = []
     for i in range(e_shnum):
         off = e_shoff + i * e_shentsize
-        sh_name, sh_type, _, _, sh_offset, sh_size, sh_link, _, sh_entsize = \
+        sh_name, sh_type, _flags, _addr, sh_offset, sh_size, sh_link, _info, _align, sh_entsize = \
             struct.unpack_from("<IIQQQQIIQQ", data, off)
         sections.append((sh_name, sh_type, sh_offset, sh_size, sh_link, sh_entsize))
     if e_shstrndx >= len(sections):

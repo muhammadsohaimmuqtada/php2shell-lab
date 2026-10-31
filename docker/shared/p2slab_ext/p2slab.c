@@ -5,7 +5,7 @@
  * 64 hex chars, mode 600, written by the lab entrypoint before Apache starts):
  *
  *   seed[0:16]  -> the boot canary (16 bytes) planted in the request heap
- *   seed[16]    -> layout shift k: every request allocates (0x1000 * (k+1))
+ *   seed[16]    -> layout shift: every request allocates 0x400*(k+1),
  *                  extra bytes at RINIT before anything else runs, so all
  *                  parse-time allocations — including the stage-3 payload
  *                  slot — move by an unknowable-per-boot delta. Published
@@ -88,8 +88,13 @@ PHP_MINIT_FUNCTION(p2slab)
     }
 
     memcpy(p2sg.canary, raw, 16);
-    k = raw[16] % 127;
-    p2sg.shift_size = (size_t)0x1000 * (size_t)(k + 1);  /* 0x1000 .. 0x7F000 */
+    /* Shift window is calibrated, not arbitrary: it must exceed the stage-3
+     * spray span (the ~3-6 KB of freed slots the fake-table copies occupy,
+     * which gives the published constant its tolerance) and stay far below
+     * the range where the blanket early allocation perturbs the leak-stage
+     * geometry. 0x400*(k+1), k in [6,15] -> 7..11 KB satisfies both. */
+    k = 6 + raw[16] % 10;
+    p2sg.shift_size = (size_t)0x400 * (size_t)(k + 1);   /* 0x1C00 .. 0x2C00 */
 
     {
         unsigned long long base, v;

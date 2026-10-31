@@ -26,9 +26,9 @@ heap, compute its distance from the chunk base, and you have your constant.
 
 0. **Find your landmarks (per boot).** The extension leaves two findable
    structures in the request heap, by design:
-   - the **shift block**: a run of `'A'` (0x41) bytes, length
-     `0x1000 × (1 + k)`, `k ∈ [0,126]` derived from this boot's seed
-     (root-only — you measure it, you don't read it);
+   - the **shift block**: a run of `'A'` (0x41) bytes, length in the
+     7–11 KB band, derived from this boot's seed (root-only — you measure
+     it, you don't read it);
    - the **canary block** immediately after it: magic `P2SLABCB`, then 16
      canary bytes, then decoy pointer clusters (`0x7f…`-shaped, page-aligned,
      and wrong).

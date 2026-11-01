@@ -27,10 +27,12 @@ jobs:
           for i in $(seq 1 30); do curl -so /dev/null http://127.0.0.1:8099/ && break; sleep 1; done
           curl -sI http://127.0.0.1:8099/ | grep -i "X-Powered-By: PHP/${{ matrix.version }}"
           FLAG=$(docker exec t-${{ matrix.version }} cat /flag)
-          test ${#FLAG} -eq 32 && echo "flag minted (${#FLAG} chars)"
+          echo "flag length: ${#FLAG}"
+          test "${#FLAG}" -eq 32 || { echo "FAIL: flag length"; exit 1; }
           MEM=$(docker exec t-${{ matrix.version }} php -r 'echo ini_get("memory_limit");')
           POST=$(docker exec t-${{ matrix.version }} php -r 'echo ini_get("post_max_size");')
-          test "$MEM" = "8M" && test "$POST" = "64M" && echo "config class OK ($MEM/$POST)"
+          echo "config: memory_limit=${MEM} post_max_size=${POST}"
+          if [ "${MEM}" != "8M" ] || [ "${POST}" != "64M" ]; then echo "FAIL: config class"; exit 1; fi
           docker rm -f t-${{ matrix.version }} >/dev/null
       - name: Checker + gate unit checks
         run: |

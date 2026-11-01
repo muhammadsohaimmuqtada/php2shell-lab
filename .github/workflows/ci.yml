@@ -19,6 +19,7 @@ jobs:
       - name: Smoke — boot, banner, flag, config
         run: |
           docker run -d --name t-${{ matrix.version }} -p 127.0.0.1:8099:80 \
+            --entrypoint /usr/local/bin/lab-entrypoint.sh \
             -v "$PWD/srv/webroot:/var/www/html:ro" \
             -v "$PWD/srv/php.ini:/usr/local/etc/php/conf.d/zz-lab.ini:ro" \
             -v "$PWD/srv/apache-single.conf:/etc/apache2/conf-enabled/zz-lab.conf:ro" \

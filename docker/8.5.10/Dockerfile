@@ -9,3 +9,5 @@ RUN cd /usr/src/p2slab_ext     && phpize     && ./configure --enable-p2slab     
 
 COPY shared/entrypoint.sh /usr/local/bin/lab-entrypoint.sh
 RUN chmod +x /usr/local/bin/lab-entrypoint.sh
+
+CMD ["apache2-foreground"]

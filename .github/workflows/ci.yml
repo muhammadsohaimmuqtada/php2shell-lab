@@ -23,7 +23,7 @@ jobs:
             -v "$PWD/srv/webroot:/var/www/html:ro" \
             -v "$PWD/srv/php.ini:/usr/local/etc/php/conf.d/zz-lab.ini:ro" \
             -v "$PWD/srv/apache-single.conf:/etc/apache2/conf-enabled/zz-lab.conf:ro" \
-            p2slab/ci-${{ matrix.version }}
+            p2slab/ci-${{ matrix.version }} apache2-foreground
           for i in $(seq 1 30); do curl -so /dev/null http://127.0.0.1:8099/ && break; sleep 1; done
           curl -sI http://127.0.0.1:8099/ | grep -i "X-Powered-By: PHP/${{ matrix.version }}"
           FLAG=$(docker exec t-${{ matrix.version }} cat /flag)

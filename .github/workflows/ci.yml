@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build ${{ matrix.version }}
-        run: docker build -f ${{ matrix.version }}/Dockerfile -t p2slab/ci-${{ matrix.version }} docker/
+        run: docker build -f docker/${{ matrix.version }}/Dockerfile -t p2slab/ci-${{ matrix.version }} docker/
       - name: Smoke — boot, banner, flag, config
         run: |
           docker run -d --name t-${{ matrix.version }} -p 127.0.0.1:8099:80 \
